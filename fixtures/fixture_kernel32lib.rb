@@ -10,10 +10,16 @@ module Fixture
   def self.show
     system 'cls'
     puts '# get_file_information_by_handle'
-    puts "  - file information: #{Kernel32Lib.get_file_information_by_handle(__FILE__)}"
+    puts "  - file information: #{Kernel32Lib.get_file_information_by_handle(File.join(File.expand_path('../fixtures'),'metadata_target_file.txt'))}"
     puts
     puts '# get_file_time'
-    puts "  - file time: #{Kernel32Lib.get_file_time(__FILE__)}"
+    puts "  - file time: #{Kernel32Lib.get_file_time(File.join(File.expand_path('../fixtures'),'metadata_target_file.txt'))}"
+    puts
+    puts '# get_file_information_by_handle'
+    puts "  - file information: #{Kernel32Lib.get_file_information_by_handle(File.join(File.expand_path('../fixtures'),'целевой_файл_с_метаданными.txt'))}"
+    puts
+    puts '# get_file_time'
+    puts "  - file time: #{Kernel32Lib.get_file_time(File.join(File.expand_path('../fixtures'),'целевой_файл_с_метаданными.txt'))}"
     puts
     puts '# try console'
     console_output = Kernel32Lib.GetStdHandle(Kernel32Lib::STD_OUTPUT_HANDLE)

@@ -1,3 +1,12 @@
+## 0.0.3 (Jul 9, 2016)
+
+Features:
+    - add WinAPI error codes translation (0-499)
+    - add support file path in UNICODE
+
+Bugfixes:
+    - check file path encoding
+
 ## 0.0.2 (Jun 2, 2016)
 Features:
 - add WinAPI Consoles functions:

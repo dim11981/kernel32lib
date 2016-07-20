@@ -6,10 +6,13 @@ require(File.expand_path('../../lib/kernel32lib.rb',__FILE__))
 # Files
 module Kernel32Lib
   extern 'void* CreateFile(char*,unsigned long,unsigned long,void*,unsigned long,unsigned long,void*)'
+  extern 'void* CreateFileW(char*,unsigned long,unsigned long,void*,unsigned long,unsigned long,void*)'
   extern 'int CloseHandle(void*)'
   extern 'int GetFileInformationByHandle(void*,void*)'
   extern 'int FileTimeToSystemTime(void*,void*)'
   extern 'int GetFileTime(void*,void*,void*,void*)'
+
+  INVALID_HANDLE_VALUE = 4294967295
 
   # Access rights constants
   FILE_READ_DATA = 1
@@ -56,6 +59,15 @@ module Kernel32Lib
   FILE_FLAG_SEQUENTIAL_SCAN = 0x08000000 # Access is intended to be sequential from beginning to end.
   FILE_FLAG_WRITE_THROUGH = 0x80000000 # Write operations will not go through any intermediate cache, they will go directly to disk.
 
+  # CreateFile (retrieve metadata only)
+  def self.create_file_metadata(file_path)
+    begin
+      Kernel32Lib.CreateFile(file_path.encode('ascii-8bit'),Kernel32Lib::GENERIC_READ,Kernel32Lib::FILE_SHARE_READ | Kernel32Lib::FILE_SHARE_WRITE,nil,Kernel32Lib::OPEN_EXISTING,0,nil)
+    rescue Encoding::UndefinedConversionError
+      Kernel32Lib.CreateFileW(file_path.encode('utf-16le'),Kernel32Lib::GENERIC_READ,Kernel32Lib::FILE_SHARE_READ | Kernel32Lib::FILE_SHARE_WRITE,nil,Kernel32Lib::OPEN_EXISTING,0,nil)
+    end
+  end
+
   # FileTimeToSystemTime
   def self.file_time_to_system_time(file_time)
     lp_system_time = '0'*16
@@ -67,13 +79,17 @@ module Kernel32Lib
   # GetFileInformationByHandle
   def self.get_file_information_by_handle(file_path)
     lp_file_information = '0'*52
-    #handle = Kernel32Lib.CreateFile(file_name,1,3,0,3,48,0)
-    handle = Kernel32Lib.CreateFile(file_path,Kernel32Lib::FILE_READ_DATA,Kernel32Lib::FILE_SHARE_READ | Kernel32Lib::FILE_SHARE_WRITE,nil,Kernel32Lib::OPEN_EXISTING,0,nil)
-    Kernel32Lib.GetFileInformationByHandle(handle,lp_file_information)
+
+    handle = create_file_metadata(file_path)
+    raise Kernel32Lib::Error, Kernel32Lib.get_last_error_message if handle.to_i == Kernel32Lib::INVALID_HANDLE_VALUE
+
+    result = Kernel32Lib.GetFileInformationByHandle(handle,lp_file_information)
+    raise Kernel32Lib::Error, Kernel32Lib.get_last_error_message if result == 0
+
     Kernel32Lib.CloseHandle(handle)
 
     lp_file_information = lp_file_information.unpack('I13')
-    file_information = {
+    {
       file_path: file_path,
       file_attributes: lp_file_information[0],
       creation_time: Kernel32Lib.file_time_to_system_time(lp_file_information[1,2].pack('I2')),
@@ -86,8 +102,6 @@ module Kernel32Lib
       file_index_high: lp_file_information[11],
       file_index_low: lp_file_information[12]
     }
-
-    file_information
   end
 
   # GetFileTime
@@ -95,19 +109,26 @@ module Kernel32Lib
     lp_creation_time = '0'*8
     lp_access_time = '0'*8
     lp_write_time = '0'*8
-    handle = Kernel32Lib.CreateFile(file_path,Kernel32Lib::FILE_READ_DATA,Kernel32Lib::FILE_SHARE_READ | Kernel32Lib::FILE_SHARE_WRITE,nil,Kernel32Lib::OPEN_EXISTING,0,nil)
-    Kernel32Lib.GetFileTime(handle,lp_creation_time,lp_access_time,lp_write_time)
+
+
+    #handle = Kernel32Lib.CreateFile(file_path,Kernel32Lib::GENERIC_READ,Kernel32Lib::FILE_SHARE_READ | Kernel32Lib::FILE_SHARE_WRITE,nil,Kernel32Lib::OPEN_EXISTING,0,nil)
+    handle = create_file_metadata(file_path)
+    raise Kernel32Lib::Error, Kernel32Lib.get_last_error_message if handle.to_i == Kernel32Lib::INVALID_HANDLE_VALUE
+
+    result = Kernel32Lib.GetFileTime(handle,lp_creation_time,lp_access_time,lp_write_time)
+    raise Kernel32Lib::Error, Kernel32Lib.get_last_error_message if result == 0
+
     Kernel32Lib.CloseHandle(handle)
 
     lp_creation_time = lp_creation_time.unpack('I2')
     lp_access_time = lp_access_time.unpack('I2')
     lp_write_time = lp_write_time.unpack('I2')
 
-    file_time = {
+    {
+        file_path: file_path,
         creation_time: Kernel32Lib.file_time_to_system_time(lp_creation_time.pack('I2')),
         last_access_time: Kernel32Lib.file_time_to_system_time(lp_access_time.pack('I2')),
         last_write_time: Kernel32Lib.file_time_to_system_time(lp_write_time.pack('I2')),
     }
-    file_time
   end
 end
